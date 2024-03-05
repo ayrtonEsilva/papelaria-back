@@ -43,6 +43,22 @@ router.get("/",(req,res,next)=>{
     });
     
 });
+router.get("/:id",(req,res,next)=>{
+    const {id} = req.params
+    db.all("SELECT * FROM usuario WHERE id=?",[id],(error,rows)=>{
+        if(error){
+            return res.status(500).send({
+                error:error.message
+            });
+        }
+        console.log(rows)
+        res.status(200).send({
+            mensagem:"Aqui está a lista de usuários",
+            usuario:rows
+        })
+    });
+    
+});
 router.get("/nomes",(req,res,next)=>{
     let nomes = [];
     usuario.map((linha)=>{
@@ -53,6 +69,30 @@ router.get("/nomes",(req,res,next)=>{
     })
     res.json(nomes);
 })
+router.post("/login", (req, res, next) => {
+    const { email, senha } = req.body;
+
+    db.all(`SELECT id, nome, email FROM usuario WHERE email = ? and senha = ?`, [email, senha], (error, rows) => {
+        if (error) {
+            console.error(error.message);
+            return res.status(500).send({
+                error: error.message
+            });
+        }
+        console.log(rows);
+        if (rows.length > 0) {
+            res.status(200).send({
+                mensagem: "Dados de login estão corretos",
+                usuario: rows[0]
+            });
+        } else {
+            res.status(401).send({
+                mensagem: "Credenciais inválidas"
+            });
+        }
+    });
+});
+
 router.post("/",(req,res,next)=>{
     
     const {nome, email, senha} = req.body;
@@ -77,14 +117,24 @@ router.post("/",(req,res,next)=>{
     res.status(200).send({mensagem:"Salvo com sucesso"});
 })
 router.put("/",(req,res,next)=>{
-    const id = req.body.id;
-                                                                          
+    const {id,nome,email,senha} = req.body;
+    db.run("UPDATE usuario SET nome=?,email=?,senha=? WHERE id=?",
+    [nome,email,senha,id],function(error){
+        if(error){
+            return res.status(500).send({
+                error:error.message
+            });
+        }
+        res.status(200).send({
+            mensagem:"Cadastro alterado com sucesso!!",
+            
+        })
+    });                                                      
    
-    res.status(404).send({id:id});
 })
 router.delete("/:id",(req,res,next)=>{
     const {id} = req.params
-  
+   
     db.run("DELETE FROM usuario WHERE id= ?",id,(error)=>{
         if(error){
             return res.status(500).send({
