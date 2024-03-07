@@ -7,6 +7,7 @@ const morgan = require("morgan");
 app.use(morgan("dev"));
 
 const rotaUsuarios = require("./routes/rotaUsuario");
+const rotaProdutos = require("./routes/rotaProdutos");
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended:false}))
 
@@ -27,18 +28,22 @@ app.use((req, res, next)=>{
 })
 
 app.use("/usuario",rotaUsuarios);
+app.use("/produtos",rotaProdutos);
+
 
 app.use((req, res, next)=>{
     const erro = new Error("Não encontrado!");
     erro.status(404);
+    next(erro)
 })
 
 app.use((error, req, res, next)=>{
-    req.status(error.status || 500);
+    res.status(error.status || 500);
     return res.json({
         erro:{
             mensagem:error.message
         }
     })
 })
+
 module.exports = app
