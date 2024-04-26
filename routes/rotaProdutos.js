@@ -1,61 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const sqlite3 = require("sqlite3").verbose(); 
-const db = new sqlite3.Database("database.db");
+const mysql = require("../mysql").pool;
+
 const bcrypt = require('bcrypt'); // Para hash de senha
 const jwt = require('jsonwebtoken'); // Para geração de token JWT
-const produto = [
-    {
-    id:1,
-    status: "A",
-    descrição: "caderno",
-    estoque_minimo: "12",
-    estoque_maximo: "13"
-    },
-    {
-    id:2,
-    status: "A",
-    descrição: "caneta",
-    estoque_minimo: "12",
-    estoque_maximo: "13"
-    },
-    {
-    id:3,
-    status: "A",
-    descrição: "lápis",
-    estoque_minimo: "12",
-    estoque_maximo: "13"
-    },
-    {
-    id:4,
-    status: "A",
-    descrição: "mochila",
-    estoque_minimo: "12",
-    estoque_maximo: "13"
-    },
-    
-]
-router.get("/",(req,res,next)=>{
-    console.log("erro linha 39")
-    db.all("SELECT * FROM produto",(error,rows)=>{
-        
-        if(error){
-            console.log(error)
+
+
+router.get("/", (req, res, next) => {
+    mysql.query("SELECT * FROM produto", (error, rows) => {
+        if (error) {
             return res.status(500).send({
-                error:error.message
+                error: error.message
             });
         }
         res.status(200).send({
-            mensagem:"Aqui está a lista de produto",
-            produto:rows
+            mensagem: "Aqui está a lista de produtos",
+            produto: rows
         })
     });
-    
+  
 });
 router.get("/:id",(req,res,next)=>{
     console.log("erro linha 56")
     const {id} = req.params
-    db.all("SELECT * FROM produto WHERE id=?",[id],(error,rows)=>{
+    mysql.query("SELECT * FROM produto WHERE id=?",[id],(error,rows)=>{
         if(error){
             return res.status(500).send({
                 error:error.message
@@ -69,21 +37,13 @@ router.get("/:id",(req,res,next)=>{
     });
     
 });
-// router.get("/nomes",(req,res,next)=>{
-//     let nomes = [];
-//     produto.map((linha)=>{
-//         nomes.push({
-//             nome:linha.nome,
-//             email:linha.email
-//         });
-//     })
-//     res.json(nomes);
-// })
+
 
 
 router.post('/', (req, res, next) => {
-    db.run("CREATE TABLE IF NOT EXISTS produto (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT, descricao TEXT, estoque_minimo REAL, estoque_maximo REAL)", (createTableError) => {
+    mysql.query("CREATE TABLE IF NOT EXISTS produto (id INTEGER PRIMARY KEY AUTO_INCREMENT, status TEXT, descricao TEXT, estoque_minimo REAL, estoque_maximo REAL)", (createTableError) => {
         if (createTableError) {
+            console.log(createTableError)
             return res.status(500).send({
                 error: createTableError.message
             });
@@ -121,9 +81,10 @@ router.post('/', (req, res, next) => {
             erros: msg
         });
     }
-    console.log("erro linha 113")
+    console.log("erro linha 84")
     // Verifica se o email já está cadastrado
-    db.get(`SELECT * FROM produto WHERE descricao = ?`, [descricao], (error, produtoExistente) => {
+    mysql.query("SELECT * FROM produto WHERE descricao = ?", [descricao], (error, produtoExistente) => {
+  
         if (error) {
             console.log(error)
             return res.status(500).send({
@@ -131,8 +92,8 @@ router.post('/', (req, res, next) => {
                 response: null
             });
         }
-
-        if (produtoExistente) {
+           
+        if (produtoExistente.length>0) {
             console.log("Produto já cadastrado.")
             return res.status(400).send({
                 mensagem: "Produto já cadastrado."
@@ -141,9 +102,10 @@ router.post('/', (req, res, next) => {
         console.log("141")
 
             // Insere o novo usuário no banco de dados
-            db.run(`INSERT INTO produto (status, descricao, estoque_minimo, estoque_maximo) VALUES (?, ?, ?, ?)`, [status, descricao, estoque_minimo, estoque_maximo ], function (insertError) {
+            mysql.query(`INSERT INTO produto (status, descricao, estoque_minimo, estoque_maximo) VALUES (?, ?, ?, ?)`, [status, descricao, estoque_minimo, estoque_maximo ], function (insertError) {
             console.log(insertError)
                 if (insertError) {
+                    console.log(insertError)
                     return res.status(500).send({
                         error: insertError.message,
                         response: null
@@ -165,9 +127,10 @@ router.post('/', (req, res, next) => {
 
 router.put("/",(req,res,next)=>{
     const {status,descricao,estoque_minimo,estoque_maximo} = req.body;
-    db.run("UPDATE produto SET status=?,descricao=?,estoque_minimo=?,estoque_maximo=? WHERE id=?",
+   mysql.query("UPDATE produto SET status=?,descricao=?,estoque_minimo=?,estoque_maximo=? WHERE id = id",
     [status,descricao,estoque_minimo,estoque_maximo],function(error){
         if(error){
+            console.log(error)
             return res.status(500).send({
                 error:error.message
             });
@@ -182,7 +145,7 @@ router.put("/",(req,res,next)=>{
 router.delete("/:id",(req,res,next)=>{
     const {id} = req.params
    
-    db.run("DELETE FROM produto WHERE id= ?",id,(error)=>{
+    mysql.query("DELETE FROM produto WHERE id= ?",[id],(error)=>{
         if(error){
             return res.status(500).send({
                 error:error.message

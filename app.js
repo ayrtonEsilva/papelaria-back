@@ -8,7 +8,9 @@ app.use(morgan("dev"));
 
 const rotaUsuarios = require("./routes/rotaUsuario");
 const rotaProdutos = require("./routes/rotaProdutos");
-const rotaEntrada = require("./routes/rotaEntrada")
+const rotaEntrada = require("./routes/rotaEntrada");
+const rotaEstoque = require("./routes/rotaEstoque");
+const rotaSaida = require("./routes/rotaSaida");
 const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended:false}))
 
@@ -19,8 +21,8 @@ app.use((req, res, next)=>{
     res.header(
         "Access-Control-Allow-Headers",
         "Origin, X-Request-With, Conect-Type, Accept, Autorization"
-
     );
+    
     if(req.method ==="OPTIONS"){
         res.header("Access-Control-Allow-Methods","PUT, POST, PATCH, DELETE, GET");
         return res.status(200).send({})
@@ -31,6 +33,8 @@ app.use((req, res, next)=>{
 app.use("/usuario",rotaUsuarios);
 app.use("/produtos",rotaProdutos);
 app.use("/entrada",rotaEntrada)
+app.use("/estoque",rotaEstoque)
+app.use("/saida",rotaSaida)
 
 
 app.use((req, res, next)=>{

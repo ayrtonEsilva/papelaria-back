@@ -1,16 +1,14 @@
 const express = require("express");
 const router = express.Router();
-const sqlite3 = require("sqlite3").verbose(); 
-const db = new sqlite3.Database("database.db");
+const mysql = require("../mysql").pool;
 const bcrypt = require('bcrypt'); // Para hash de senha
 const jwt = require('jsonwebtoken'); // Para geração de token JWT
+const { res } = require("express");
 
 
-db.run("CREATE TABLE IF NOT EXISTS entrada (id INTEGER PRIMARY KEY AUTOINCREMENT, id_produto INTEGER, qtde REAL, data_entrada TEXT, valor_unitario REAL)", (createTableError) => {
+mysql.query("CREATE TABLE IF NOT EXISTS entrada (id INT PRIMARY KEY AUTO_INCREMENT, id_produto INT, qtde REAL, data_entrada TEXT, valor_unitario REAL)", (createTableError) => {
     if (createTableError) {
-        return res.status(500).send({
-            error: createTableError.message
-        });
+        console.error(createTableError);
     }
 
     // O restante do código, se necessário...
@@ -19,7 +17,17 @@ db.run("CREATE TABLE IF NOT EXISTS entrada (id INTEGER PRIMARY KEY AUTOINCREMENT
 
 router.get("/",(req,res,next)=>{
     console.log("erro linha 39")
-    db.all("SELECT * FROM entrada INNER JOIN produto ON entrada.id_produto = produto.id",(error,rows)=>{
+    mysql.query(`SELECT 
+    entrada.id as id,
+    entrada.qtde as qtde,
+    entrada.data_entrada as data_entrada,
+    produto.id as id_produto,
+    produto.descricao as descricao
+    
+    FROM entrada 
+    
+    INNER JOIN produto 
+    ON entrada.id_produto = produto.id`,(error,rows)=>{
         
         if(error){
             console.log(error)
@@ -37,7 +45,7 @@ router.get("/",(req,res,next)=>{
 router.get("/:id",(req,res,next)=>{
     console.log("erro linha 56")
     const {id} = req.params
-    db.all("SELECT * FROM entrada WHERE id=?",[id],(error,rows)=>{
+    mysql.query("SELECT * FROM entrada WHERE id=?",[id],(error,rows)=>{
         if(error){
             return res.status(500).send({
                 error:error.message
@@ -49,35 +57,30 @@ router.get("/:id",(req,res,next)=>{
             entrada:rows
         })
     });
+    });
     
 
-// router.get("/nomes",(req,res,next)=>{
-//     let nomes = [];
-//     produto.map((linha)=>{
-//         nomes.push({
-//             nome:linha.nome,
-//             email:linha.email
-//         });
-//     })
-//     res.json(nomes);
-// })
+
 
 function atualizarestoque(id_produto,qtde,valor_unitario){
-    db.all('SELECT * FROM estoque WHERE id_produto=?',[id_produto], (error, rows) => {
+    mysql.query('SELECT * FROM estoque WHERE id_produto=?',[id_produto], (error, rows) => {
         if (error) {
-            return false;
+            return res.status(500).send({
+                error: error.message
+            })
         }
         if(rows.length>0){
             let quantidade = rows[0].quantidade;
-            quantidade = quantidade+qtde
-            db.run("UPDATE estoque SET quantidade=?, valorunitario=? WHERE id_produto",
-            [qtde, valor_unitario, id_produto])
+            quantidade = parseFloat(quantidade)+parseFloat(qtde)
+            mysql.query("UPDATE estoque SET quantidade=?, valor_unitario=? WHERE id_produto=?",
+            [quantidade, valor_unitario, id_produto])
             
         }else{
-            db.run("CREATE TABLE IF NOT EXISTS estoque (id INTEGER PRIMARY KEY AUTOINCREMENT, id_produto REAL, qtde REAL, valor_unitario REAL)", (createTableError) => {
-                if (createTableError) {
+            mysql.query(`INSERT INTO estoque (id_produto, quantidade, valor_unitario) VALUES (?, ?, ?)`, [id_produto, qtde, valor_unitario], function (insertError) {
+
+                if (insertError) {
                     return res.status(500).send({
-                        error: createTableError.message
+                        error: insertError.message
                     });
                 }
             
@@ -88,7 +91,8 @@ function atualizarestoque(id_produto,qtde,valor_unitario){
     return true;
 }
 router.post('/', (req, res, next) => {
-    db.run("CREATE TABLE IF NOT EXISTS entrada (id INTEGER PRIMARY KEY AUTOINCREMENT, id_produto INTEGER, qtde REAL, data_entrada TEXT, valor_unitario REAL)", (createTableError) => {
+  
+    mysql.query("CREATE TABLE IF NOT EXISTS entrada (id INT PRIMARY KEY AUTO_INCREMENT, id_produto INT, qtde REAL, data_entrada TEXT, valor_unitario REAL)", (createTableError) => {
         if (createTableError) {
             return res.status(500).send({
                 error: createTableError.message
@@ -97,7 +101,7 @@ router.post('/', (req, res, next) => {
     });
 
     const { id_produto, qtde, data_entrada, valor_unitario } = req.body;
- 
+    
     let msg = [];
     var regex = /^[0-9]+$/
     if (!id_produto) {
@@ -121,7 +125,7 @@ router.post('/', (req, res, next) => {
     }
     
             // Insere o novo usuário no banco de dados
-            db.run(`INSERT INTO entrada (id_produto, qtde, data_entrada, valor_unitario) VALUES (?, ?, ?, ?)`, [id_produto, qtde, data_entrada, valor_unitario ], function (insertError) {
+            mysql.query(`INSERT INTO entrada (id_produto, qtde, data_entrada, valor_unitario) VALUES (?, ?, ?, ?)`, [id_produto, qtde, data_entrada, valor_unitario ], function (insertError) {
             console.log(insertError)
                 if (insertError) {
                     return res.status(500).send({
@@ -141,11 +145,11 @@ router.post('/', (req, res, next) => {
                 });
             });
         });
-     });
+  
 
 router.put("/",(req,res,next)=>{
     const {id,id_produto, qtde, data_entrada, valor_unitario } = req.body;
-    db.run("UPDATE produto SET id_produto=?,qtde=?,data_entrada=?,valor_unitario=? WHERE id=?",
+    mysql.query("UPDATE produto SET id_produto=?,qtde=?,data_entrada=?,valor_unitario=? WHERE id=?",
     [id_produto, qtde, data_entrada, valor_unitario, id ],function(error){
         if(error){
             return res.status(500).send({
@@ -162,7 +166,7 @@ router.put("/",(req,res,next)=>{
 router.delete("/:id",(req,res,next)=>{
     const {id} = req.params
    
-    db.run("DELETE FROM entrada WHERE id= ?",id,(error)=>{
+    mysql.query("DELETE FROM entrada WHERE id= ?",id,(error)=>{
         if(error){
             return res.status(500).send({
                 error:error.message
